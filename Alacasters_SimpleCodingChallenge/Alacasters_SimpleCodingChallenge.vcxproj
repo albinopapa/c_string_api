@@ -166,6 +166,7 @@
     <ClInclude Include="defines.h" />
     <ClInclude Include="memory.h" />
     <ClInclude Include="stringstream.h" />
+    <ClInclude Include="utility.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -12,371 +12,328 @@ typedef struct _sstream
 	char* buffer;
 }_sstream;
 
-bool ss_isInitialized( stringstream this );
-
 // Private forward declarations
-void ss_resize( stringstream this, size_t newSize );
-void ss_putchar( stringstream this, const char c );
-void ss_insert( stringstream this, const char* str );
-void ss_insert_cstring( stringstream this, const cstring str );
-char ss_getchar( stringstream this );
-cstring ss_extract( stringstream this );
-cstring ss_string( stringstream this );
-void ss_seek( size_t* ptr, size_t maxSize, int offset, seekpos position );
-void ss_seekg( stringstream this, int offset, seekpos position );
-void ss_seekp( stringstream this, int offset, seekpos position );
+bool ss_putchar( stringstream this, const char c );
+bool ss_insert( stringstream this, const char* str );
+bool ss_insert_cstring( stringstream this, const cstring str );
+bool ss_eof( const stringstream this );
+
+bool ss_getchar( stringstream this, char* pc );
+bool ss_extract( stringstream this, cstring* output );
+bool ss_string( stringstream this, cstring* output );
+
+bool ss_seek( size_t* ptr, size_t maxSize, int offset, seekpos position );
+bool ss_seekg( stringstream this, int offset, seekpos position );
+bool ss_seekp( stringstream this, int offset, seekpos position );
 size_t ss_tellg( stringstream this );
 size_t ss_tellp( stringstream this );
 
-bool ss_isInitialized( stringstream this )
-{
-	return ( this.extract == ss_extract && this.stream != nullptr );
-}
-stringstream ss_construct()
-{
-	ResultCode result = Result_Ok;
+bool ss_resize( stringstream this, size_t newSize );
+bool ss_isInitialized( stringstream this );
 
-	stringstream this;
-	this.extract = ss_extract;
-	this.getchar = ss_getchar;
-	this.insert = ss_insert;
-	this.insert_cstring = ss_insert_cstring;
-	this.putchar = ss_putchar;
-	this.seekg = ss_seekg;
-	this.seekp = ss_seekp;
-	this.string = ss_string;
+bool ss_construct( stringstream* this )
+{
+	if( this == nullptr )
+	{
+		err_set_result( Result_Null_Parameter );
+		return false;
+	}
+
+	_sstream* stream = stream = ( _sstream* )malloc( sizeof( _sstream ) );
+	if( stream == nullptr )
+	{
+		err_set_result( Result_Bad_Alloc );
+		return false;
+	}
+
+	const size_t alloc_size = 16;
+	stream->buffer = ( char* )malloc( alloc_size );
+	if( stream->buffer == nullptr )
+	{
+		free( stream );
+		err_set_result( Result_Bad_Alloc );
+		return false;
+	}
+
+	stream->alloc_size = alloc_size;
+	stream->readPos = 0;
+	stream->str_size = 0;
+	stream->writePos = 0;
+
+	stringstream self;
+	self.extract = ss_extract;
+	self.getchar = ss_getchar;
+	self.insert = ss_insert;
+	self.insert_cstring = ss_insert_cstring;
+	self.putchar = ss_putchar;
+	self.tellg = ss_tellg;
+	self.tellp = ss_tellp;
+	self.seekg = ss_seekg;
+	self.seekp = ss_seekp;
+	self.string = ss_string;
+	self.eof = ss_eof;
+	self.stream = stream;
 	
-	this.stream = ( _sstream* )malloc( sizeof( _sstream ) );
-	if( !this.stream )
-	{
-		result = Result_Bad_Alloc;
-	}
-	else
-	{
-		this.stream->alloc_size = 15;
-		this.stream->buffer = ( char* )malloc( this.stream->alloc_size );
-		this.stream->readPos = 0;
-		this.stream->str_size = 0;
-		this.stream->writePos = 0;
-	}
+	*this = self;
 
-	err_set_result( result );
-	return this;
+	err_set_result( Result_Ok );
+	return true;
 }
-void ss_destroy( stringstream this )
+void ss_destroy( stringstream* this )
 {
-	ResultCode result = Result_Ok;
-	if( ss_isInitialized( this ) == false )
+	if( ss_isInitialized( *this ) == false )
 	{
-		result = Result_Not_Initialized;
-	}
-	else
-	{
-		this.stream->alloc_size = 0;
-		this.stream->readPos = 0;
-		this.stream->str_size = 0;
-		this.stream->writePos = 0;
-
-		SafeDelete( &this.stream->buffer );
+		err_set_result( Result_Not_Initialized );
+		return;
 	}
 
-	err_set_result( result );
+	this->extract = nullptr;
+	this->getchar = nullptr;
+	this->insert = nullptr;
+	this->insert_cstring = nullptr;
+	this->putchar = nullptr;
+	this->seekg = nullptr;
+	this->seekp = nullptr;
+	this->string = nullptr;
+	this->tellg = nullptr;
+	this->tellp = nullptr;
+	this->eof = nullptr;
+
+	this->stream->alloc_size = 0;
+	this->stream->readPos = 0;
+	this->stream->str_size = 0;
+	this->stream->writePos = 0;
+
+	SafeDelete( &this->stream->buffer );
+
+	err_set_result( Result_Ok );
 }
-void ss_resize( stringstream this, size_t newSize )
+bool ss_resize( stringstream this, size_t newSize )
 {
-	ResultCode result = Result_Ok;
-
-	if( ss_isInitialized( this ) == false )
+	if( newSize < this.stream->alloc_size )
 	{
-		result = Result_Not_Initialized;
-	}
-	else
-	{
-		char* temp = ( char* )malloc( newSize );
-		if( temp == nullptr )
-		{
-			result = Result_Bad_Alloc;
-		}
-		else
-		{
-			memset( temp, 0, newSize );
-			memcpy( temp, this.stream->buffer, this.stream->str_size );
-			SafeDelete( &this.stream->buffer );
-			this.stream->buffer = temp;
-			this.stream->alloc_size = newSize;
-		}
+		err_set_result( Result_Ok );
+		return true;
 	}
 
-	err_set_result( result );
+	char* buffer = ( char* )malloc( newSize );
+	if( buffer == nullptr )
+	{
+		err_set_result( Result_Bad_Alloc );
+		return false;
+	}
+
+	memset( buffer, 0, newSize );
+	memcpy( buffer, this.stream->buffer, this.stream->str_size );
+	SafeDelete( &this.stream->buffer );
+	this.stream->buffer = buffer;
+	this.stream->alloc_size = newSize;
+
+	err_set_result( Result_Ok );
+	return true;
 }
-void ss_putchar( stringstream this, const char c )
+bool ss_putchar( stringstream this, const char c )
 {
-	ResultCode result = Result_Ok;
-	if( ss_isInitialized( this ) == false )
+	if( this.stream->str_size >= this.stream->alloc_size )
 	{
-		result = Result_Not_Initialized;
-	}
-	else
-	{
-		if( this.stream->str_size >= this.stream->alloc_size )
+		if( ss_resize( this, this.stream->alloc_size * 3 / 2 ) == false )
 		{
-			ss_resize( this, this.stream->alloc_size * 3 / 2 );
-		}
-		if( err_get_result() == Result_Ok )
-		{
-			this.stream->buffer[ this.stream->writePos++ ] = c;
-			++this.stream->str_size;
+			return false;
 		}
 	}
 
-	err_set_result( result );
+	this.stream->buffer[ this.stream->writePos++ ] = c;
+	++this.stream->str_size;
+
+	err_set_result( Result_Ok );
+	return true;
 }
-void ss_insert( stringstream this, const char* str )
+bool ss_insert( stringstream this, const char* str )
 {
-	ResultCode result = Result_Ok;
-	if( ss_isInitialized( this ) == false )
+	if( str == nullptr )
 	{
-		result = Result_Not_Initialized;
+		err_set_result( Result_Null_Parameter );
+		return false;
 	}
-	else
+
+	const char *iter = str;
+	while( *iter != '\0' )
 	{
-		if( str == nullptr )
+		if( ss_putchar( this, *iter ) == false )
 		{
-			result = Result_Null_Parameter;
+			return false;
 		}
-		else
+	}
+
+	err_set_result( Result_Ok );
+	return true;
+}
+bool ss_insert_cstring( stringstream this, const cstring str )
+{
+	for( size_t i = 0; i < str.size( str ); ++i )
+	{
+		char c = 0;
+		if( str.at_get( str, i, &c ) == false )
 		{
-			const char *iter = str;
-			while( *iter != '\0' )
+			return false;
+		}
+		if( ss_putchar( this, c ) == false )
+		{
+			return false;
+		}
+	}
+
+	err_set_result( Result_Ok );
+	return true;
+}
+bool ss_getchar( stringstream this, char* pc )
+{
+	if( pc == nullptr )
+	{
+		err_set_result( Result_Null_Parameter );
+		return false;
+	}
+
+	if( ss_eof( this ) == true )
+	{
+		err_set_result( Result_Ok );
+		return false;
+	}
+
+	*pc = this.stream->buffer[ this.stream->readPos++ ];
+
+	err_set_result( Result_Ok );
+	return true;
+}
+bool ss_extract( stringstream this, cstring* output )
+{
+	if( output == nullptr )
+	{
+		err_set_result( Result_Null_Parameter );
+		return false;
+	}
+
+	cstring out = { 0 };
+	if( cs_reserve_construct( &out, this.stream->str_size ) == false )
+	{
+		return false;
+	}
+
+	for( char c = 0; c != -1 && !isspace( c ); )
+	{
+		if( ss_getchar( this, &c ) == false )
+		{
+			if( err_get_result() != Result_Ok )
 			{
-				ss_putchar( this, *iter );
-				if( ( result = err_get_result() ) != Result_Ok )
-				{
-					break;
-				}
-			}
-		}
-	}
-
-	err_set_result( result );
-}
-void ss_insert_cstring( stringstream this, const cstring str )
-{	
-	ResultCode result = Result_Ok;
-	if( ss_isInitialized( this ) == false )
-	{
-		result = Result_Not_Initialized;
-	}
-	else
-	{
-		for( size_t i = 0; i < str.size( str ); ++i )
-		{
-			if( ( result = err_get_result() != Result_Ok ) )
-			{
-				break;
-			}
-			ss_putchar( this, str.at( str, i ) );
-		}
-	}
-
-	err_set_result( result );
-}
-char ss_getchar( stringstream this )
-{
-	ResultCode result = Result_Ok;
-	char gcResult = -1;
-
-	if( ss_isInitialized( this ) == false )
-	{
-		result = Result_Not_Initialized;
-	}
-	else
-	{
-		if( this.stream->readPos < this.stream->str_size )
-		{
-			gcResult = this.stream->buffer[ this.stream->readPos++ ];
-		}
-	}
-
-	return gcResult;
-}
-cstring ss_extract( stringstream this )
-{
-	ResultCode result = Result_Ok;
-	cstring output;
-	if( ss_isInitialized( this ) == false )
-	{
-		result = Result_Not_Initialized;
-	}
-	else
-	{
-		if( (result = err_get_result() == Result_Ok))
-		{
-			output = cs_size_construct( this.stream->str_size );
-
-			for( char c = ss_getchar( this ); c != -1 && !isspace( c ); c = ss_getchar( this ) )
-			{
-				if( ( result = err_get_result() ) != Result_Ok )
-				{
-					break;
-				}
-				output.push_back( output, c );
-			}
-		}
-	}
-	
-	err_set_result( result );
-
-	return output;
-}
-cstring ss_string( stringstream this )
-{
-	ResultCode result = Result_Ok;
-	cstring output;
-	if( ss_isInitialized( this ) == false )
-	{
-		result = Result_Not_Initialized;
-	}
-	else
-	{
-		output = cs_size_construct( this.stream->str_size );
-
-		for( size_t i = 0; i < this.stream->str_size; ++i )
-		{
-			if( ( result = err_get_result() ) != Result_Ok )
-			{
-				break;
-			}
-			output.push_back( output, this.stream->buffer[ i ] );
-		}
-	}
-
-	err_set_result( result );
-	return output;
-}
-void ss_seek( size_t* ptr, size_t maxSize, int offset, seekpos position )
-{
-	switch( position )
-	{
-		case SS_SEEK_BEG:
-			if( offset <= 0 )
-			{
-				*ptr = 0;
-			}
-			else if( offset > (int)maxSize )
-			{
-				*ptr = maxSize;
-			}
-			else
-			{
-				*ptr += offset;
+				cs_destroy_cstring( &out );
+				return false;
 			}
 			break;
-		case SS_SEEK_CUR:
-			if( offset < 0 )
-			{
-				if( ( int )*ptr + offset < 0 )
-				{
-					*ptr = 0;
-				}
-				else
-				{
-					*ptr += offset;
-				}
-			}
-			else if( offset > 0 )
-			{
-				if( *ptr + offset > maxSize )
-				{
-					*ptr = maxSize;
-				}
-				else
-				{
-					*ptr += maxSize;
-				}
-			}
-			break;
-		case SS_SEEK_END:
-			if( offset >= 0 )
-			{
-				*ptr = maxSize;
-			}
-			else
-			{
-				if( ( int )*ptr + offset < 0 )
-				{
-					*ptr = 0;
-				}
-				else
-				{
-					*ptr += offset;
-				}
-			}
-			break;
+		}
+		if( out.push_back( out, c ) == false )
+		{
+			cs_destroy_cstring( &out );
+			return false;
+		}
 	}
 
-}
-void ss_seekg( stringstream this, int offset, seekpos position )
-{
-	ResultCode result = Result_Ok;
-	if( ss_isInitialized( this ) == false )
+	if(output->at_get != nullptr)	
 	{
-		result = Result_Not_Initialized;
+		cs_destroy_cstring( output );
+	}
+	*output = out;
+
+	err_set_result( Result_Ok );
+	return true;
+}
+bool ss_string( stringstream this, cstring* output )
+{
+	if( output == nullptr )
+	{
+		err_set_result( Result_Null_Parameter );
+		return false;
+	}
+
+	cstring out = { 0 };
+	if( cs_reserve_construct( &out, this.stream->str_size ) == false )
+	{
+		return false;
+	}
+
+	for( size_t i = 0; i < this.stream->str_size; ++i )
+	{
+		if( out.push_back( out, this.stream->buffer[ i ] ) == false )
+		{
+			cs_destroy_cstring( &out );
+			return false;
+		}
+	}
+
+	if( output->empty( *output ) == false )
+	{
+		cs_destroy_cstring( output );
+	}
+
+	*output = out;
+	err_set_result( Result_Ok );
+	return true;
+}
+bool ss_seek( size_t* ptr, size_t maxSize, int offset, seekpos position )
+{
+	if( position == SS_SEEK_BEG )
+	{
+		if( offset >= 0 && ( size_t )offset + *ptr < maxSize )
+		{
+			*ptr += ( size_t )offset;
+			err_set_result( Result_Ok );
+			return true;
+		}
+	}
+	else if( position == SS_SEEK_CUR )
+	{
+		if( ( int )*ptr + offset >= 0 && ( int )*ptr + offset < maxSize )
+		{
+			( int )*ptr += offset;
+			err_set_result( Result_Ok );
+			return true;
+		}
 	}
 	else
 	{
-		ss_seek( &this.stream->readPos, this.stream->str_size, offset, position );
-	}
-	
-	err_set_result( result );
-}
-void ss_seekp( stringstream this, int offset, seekpos position )
-{
-	ResultCode result = Result_Ok;
-	if( ss_isInitialized( this ) == false )
-	{
-		result = Result_Not_Initialized;
-	}
-	else
-	{
-		ss_seek( &this.stream->writePos, this.stream->str_size, offset, position );
+		if( offset < 0 && ( int )*ptr + offset >= 0 )
+		{
+			( int )*ptr += offset;
+			err_set_result( Result_Ok );
+			return true;
+		}
 	}
 
-	err_set_result( result );
+	err_set_result( Result_Invalid_Parameter );
+	return false;
+}
+bool ss_seekg( stringstream this, int offset, seekpos position )
+{
+	return ss_seek( &this.stream->readPos, this.stream->str_size, offset, position );
+}
+bool ss_seekp( stringstream this, int offset, seekpos position )
+{
+	return ss_seek( &this.stream->writePos, this.stream->str_size, offset, position );
 }
 size_t ss_tellg( stringstream this )
 {
-	ResultCode result = Result_Ok;
-	size_t pos = -1;
-
-	if( ss_isInitialized( this ) == false )
-	{
-		result = Result_Not_Initialized;
-	}
-	else
-	{
-		pos = this.stream->readPos;
-	}
-
-	err_set_result( result );
-
-	return pos;
+	err_set_result( Result_Ok );
+	return this.stream->readPos;
 }
 size_t ss_tellp( stringstream this )
 {
-	ResultCode result = Result_Ok;
-	size_t pos = -1;
-
-	if( ss_isInitialized( this ) == false )
-	{
-		result = Result_Not_Initialized;
-	}
-	else
-	{
-		pos = this.stream->writePos;
-	}
-
-	err_set_result( result );
-
-	return pos;
+	err_set_result( Result_Ok );
+	return this.stream->writePos;
+}
+bool ss_eof( const stringstream this )
+{
+	return this.stream->readPos >= this.stream->str_size;
+}
+bool ss_isInitialized( stringstream this )
+{
+	return ( this.extract == ss_extract && this.stream != nullptr );
 }

@@ -14,19 +14,21 @@ typedef enum
 
 typedef struct stringstream
 {
-	void( *putchar )( stringstream this, const char c );
-	void(*insert)( stringstream this, const char* str );
-	void(*insert_cstring )( stringstream this, const cstring str );
-	char(*getchar)( stringstream this );
-	cstring(*extract)( stringstream this );
-	cstring(*string )( stringstream this );
-	void(*seekg)( stringstream this, int offset, seekpos position );
-	void(*seekp)( stringstream this, int offset, seekpos position );
+	_Bool(*getchar)( stringstream this, char* pc );
+	_Bool( *extract )( stringstream this, cstring* output );
+	_Bool( *string )( stringstream this, cstring* output );
 	size_t( *tellg )( stringstream this );
 	size_t( *tellp )( stringstream this );
+
+	_Bool( *putchar )( stringstream this, const char c );
+	_Bool( *insert )( stringstream this, const char* str );
+	_Bool( *insert_cstring )( stringstream this, const cstring str );
+	_Bool( *eof )( const stringstream this );
+	_Bool(*seekg)( stringstream this, int offset, seekpos position );
+	_Bool(*seekp)( stringstream this, int offset, seekpos position );
 
 	_sstream* stream;
 }stringstream;
 
-stringstream ss_construct();
-void ss_destroy( stringstream this );
+_Bool ss_construct( stringstream* this );
+void ss_destroy( stringstream* this );

@@ -7,7 +7,8 @@ typedef enum ResultCode
 	Result_Bad_Pointer,
 	Result_Not_Initialized,
 	Result_Index_Out_Of_Range,
-	Result_Null_Parameter
+	Result_Null_Parameter,
+	Result_Invalid_Parameter
 } ResultCode;
 
 
