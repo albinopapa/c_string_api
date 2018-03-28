@@ -1,6 +1,6 @@
 #pragma once
 
-#ifdef _cplusplus_
+#ifdef __cplusplus
 #undef nullptr
 #undef bool
 #undef true

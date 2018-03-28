@@ -33,290 +33,319 @@ bool ss_isInitialized( stringstream this );
 
 bool ss_construct( stringstream* this )
 {
+	err_set_result( Result_Ok );
+	bool result = true;
+	_sstream* stream = nullptr;
+	const size_t alloc_size = 16;
+
 	if( this == nullptr )
 	{
 		err_set_result( Result_Null_Parameter );
-		return false;
+		result = false;
 	}
-
-	_sstream* stream = stream = ( _sstream* )malloc( sizeof( _sstream ) );
-	if( stream == nullptr )
+	if( result )
 	{
-		err_set_result( Result_Bad_Alloc );
-		return false;
+		stream = stream = ( _sstream* )malloc( sizeof( _sstream ) );
+		if( stream == nullptr )
+		{
+			err_set_result( Result_Bad_Alloc );
+			result = false;
+		}
 	}
-
-	const size_t alloc_size = 16;
-	stream->buffer = ( char* )malloc( alloc_size );
-	if( stream->buffer == nullptr )
+	if( result )
 	{
-		free( stream );
-		err_set_result( Result_Bad_Alloc );
-		return false;
+		stream->buffer = ( char* )malloc( alloc_size );
+		if( stream->buffer == nullptr )
+		{
+			free( stream );
+			err_set_result( Result_Bad_Alloc );
+			result = false;
+		}
+	}
+	if( result )
+	{
+		stream->alloc_size = alloc_size;
+		stream->readPos = 0;
+		stream->str_size = 0;
+		stream->writePos = 0;
+
+		stringstream self;
+		self.extract = ss_extract;
+		self.getchar = ss_getchar;
+		self.insert = ss_insert;
+		self.insert_cstring = ss_insert_cstring;
+		self.putchar = ss_putchar;
+		self.tellg = ss_tellg;
+		self.tellp = ss_tellp;
+		self.seekg = ss_seekg;
+		self.seekp = ss_seekp;
+		self.string = ss_string;
+		self.eof = ss_eof;
+		self.stream = stream;
+
+		*this = self;
 	}
 
-	stream->alloc_size = alloc_size;
-	stream->readPos = 0;
-	stream->str_size = 0;
-	stream->writePos = 0;
-
-	stringstream self;
-	self.extract = ss_extract;
-	self.getchar = ss_getchar;
-	self.insert = ss_insert;
-	self.insert_cstring = ss_insert_cstring;
-	self.putchar = ss_putchar;
-	self.tellg = ss_tellg;
-	self.tellp = ss_tellp;
-	self.seekg = ss_seekg;
-	self.seekp = ss_seekp;
-	self.string = ss_string;
-	self.eof = ss_eof;
-	self.stream = stream;
-	
-	*this = self;
-
-	err_set_result( Result_Ok );
-	return true;
+	return result;
 }
 void ss_destroy( stringstream* this )
 {
+	err_set_result( Result_Ok );
+
+	bool result = true;
+
 	if( ss_isInitialized( *this ) == false )
 	{
 		err_set_result( Result_Not_Initialized );
-		return;
+		result = false;
 	}
+	if( result )
+	{
+		this->extract = nullptr;
+		this->getchar = nullptr;
+		this->insert = nullptr;
+		this->insert_cstring = nullptr;
+		this->putchar = nullptr;
+		this->seekg = nullptr;
+		this->seekp = nullptr;
+		this->string = nullptr;
+		this->tellg = nullptr;
+		this->tellp = nullptr;
+		this->eof = nullptr;
 
-	this->extract = nullptr;
-	this->getchar = nullptr;
-	this->insert = nullptr;
-	this->insert_cstring = nullptr;
-	this->putchar = nullptr;
-	this->seekg = nullptr;
-	this->seekp = nullptr;
-	this->string = nullptr;
-	this->tellg = nullptr;
-	this->tellp = nullptr;
-	this->eof = nullptr;
+		this->stream->alloc_size = 0;
+		this->stream->readPos = 0;
+		this->stream->str_size = 0;
+		this->stream->writePos = 0;
 
-	this->stream->alloc_size = 0;
-	this->stream->readPos = 0;
-	this->stream->str_size = 0;
-	this->stream->writePos = 0;
-
-	SafeDelete( &this->stream->buffer );
-
-	err_set_result( Result_Ok );
+		SafeDelete( &this->stream->buffer );
+	}
 }
 bool ss_resize( stringstream this, size_t newSize )
 {
-	if( newSize < this.stream->alloc_size )
-	{
-		err_set_result( Result_Ok );
-		return true;
-	}
-
-	char* buffer = ( char* )malloc( newSize );
-	if( buffer == nullptr )
-	{
-		err_set_result( Result_Bad_Alloc );
-		return false;
-	}
-
-	memset( buffer, 0, newSize );
-	memcpy( buffer, this.stream->buffer, this.stream->str_size );
-	SafeDelete( &this.stream->buffer );
-	this.stream->buffer = buffer;
-	this.stream->alloc_size = newSize;
-
 	err_set_result( Result_Ok );
-	return true;
+	char* buffer = nullptr;
+	bool result = newSize >= this.stream->alloc_size;
+
+	if( result )
+	{
+		buffer = ( char* )malloc( newSize );
+		if( buffer == nullptr )
+		{
+			err_set_result( Result_Bad_Alloc );
+			result = false;
+		}
+	}
+	if( result )
+	{
+		memset( buffer, 0, newSize );
+		memcpy( buffer, this.stream->buffer, this.stream->str_size );
+		SafeDelete( &this.stream->buffer );
+		this.stream->buffer = buffer;
+		this.stream->alloc_size = newSize;
+	}
+	
+	return result;
 }
 bool ss_putchar( stringstream this, const char c )
 {
-	if( this.stream->str_size >= this.stream->alloc_size )
+	err_set_result( Result_Ok );
+
+	bool result = this.stream->str_size >= this.stream->alloc_size;
+
+	if( result )
 	{
-		if( ss_resize( this, this.stream->alloc_size * 3 / 2 ) == false )
-		{
-			return false;
-		}
+		result = ss_resize( this, this.stream->alloc_size * 3 / 2 );
+	}
+	if( result )
+	{
+		this.stream->buffer[ this.stream->writePos++ ] = c;
+		++this.stream->str_size;
 	}
 
-	this.stream->buffer[ this.stream->writePos++ ] = c;
-	++this.stream->str_size;
-
-	err_set_result( Result_Ok );
-	return true;
+	return result;
 }
 bool ss_insert( stringstream this, const char* str )
 {
+	err_set_result( Result_Ok );
+	bool result = true;
+
 	if( str == nullptr )
 	{
 		err_set_result( Result_Null_Parameter );
-		return false;
+		result = false;
 	}
-
-	const char *iter = str;
-	while( *iter != '\0' )
+	if( result )
 	{
-		if( ss_putchar( this, *iter ) == false )
+		const char *iter = str;
+		while( *iter != '\0' && result == true )
 		{
-			return false;
+			result = ss_putchar( this, *iter );
 		}
 	}
 
-	err_set_result( Result_Ok );
-	return true;
+	return result;
 }
 bool ss_insert_cstring( stringstream this, const cstring str )
 {
-	for( size_t i = 0; i < str.size( str ); ++i )
+	err_set_result( Result_Ok );
+	bool result = true;
+
+	for( size_t i = 0; i < str.size( &str ) && result == true; ++i )
 	{
 		char c = 0;
-		if( str.at_get( str, i, &c ) == false )
+		result = str.at_get( &str, i, &c );
+		if( result )
 		{
-			return false;
-		}
-		if( ss_putchar( this, c ) == false )
-		{
-			return false;
+			result = ss_putchar( this, c );
 		}
 	}
 
-	err_set_result( Result_Ok );
-	return true;
+	return result;
 }
 bool ss_getchar( stringstream this, char* pc )
 {
+	err_set_result( Result_Ok );
+
+	bool result = true;
 	if( pc == nullptr )
 	{
 		err_set_result( Result_Null_Parameter );
-		return false;
+		result = false;
 	}
-
-	if( ss_eof( this ) == true )
+	if( result )
 	{
-		err_set_result( Result_Ok );
-		return false;
+		result = ss_eof( this );
+	}
+	if( result == false && err_get_result() == Result_Ok )
+	{
+		*pc = this.stream->buffer[ this.stream->readPos++ ];
 	}
 
-	*pc = this.stream->buffer[ this.stream->readPos++ ];
-
-	err_set_result( Result_Ok );
-	return true;
+	return result;
 }
 bool ss_extract( stringstream this, cstring* output )
 {
+	err_set_result( Result_Ok );
+
+	cstring out = { 0 };
+	bool result = true;
+
 	if( output == nullptr )
 	{
 		err_set_result( Result_Null_Parameter );
-		return false;
+		result = false;
 	}
-
-	cstring out = { 0 };
-	if( cs_reserve_construct( &out, this.stream->str_size ) == false )
+	if( result )
 	{
-		return false;
+		result = cs_reserve_construct( &out, this.stream->str_size );
 	}
-
-	for( char c = 0; c != -1 && !isspace( c ); )
+	if( result )
 	{
-		if( ss_getchar( this, &c ) == false )
+		for( char c = 0; c != -1 && !isspace( c ) && result == true; )
 		{
-			if( err_get_result() != Result_Ok )
+			result = ss_getchar( this, &c );
+			if( result )
 			{
-				cs_destroy_cstring( &out );
-				return false;
+				result = out.push_back( &out, c );
 			}
-			break;
-		}
-		if( out.push_back( out, c ) == false )
-		{
-			cs_destroy_cstring( &out );
-			return false;
 		}
 	}
 
-	if(output->at_get != nullptr)	
+	// ss_getchar can return false if a char was not retrieved like at the end of stream
+	// but still set result code to Result_Ok since this is not an error.
+	// In order to not confuse other error checking, 
+	// result is set to true again if this is the case
+	result = ( err_get_result() == Result_Ok );
+
+	if( result )
 	{
-		cs_destroy_cstring( output );
+		if( output->at_get != nullptr )
+		{
+			cs_destroy_cstring( output );
+		}
+		*output = out;
 	}
-	*output = out;
 
-	err_set_result( Result_Ok );
-	return true;
+	return result;
 }
 bool ss_string( stringstream this, cstring* output )
 {
+	err_set_result( Result_Ok );
+	bool result = true;
+	cstring out = { 0 };
+
 	if( output == nullptr )
 	{
 		err_set_result( Result_Null_Parameter );
-		return false;
+		result = false;
 	}
-
-	cstring out = { 0 };
-	if( cs_reserve_construct( &out, this.stream->str_size ) == false )
+	if( result )
 	{
-		return false;
+		result = cs_reserve_construct( &out, this.stream->str_size );
 	}
-
-	for( size_t i = 0; i < this.stream->str_size; ++i )
+	if( result )
 	{
-		if( out.push_back( out, this.stream->buffer[ i ] ) == false )
+		for( size_t i = 0; i < this.stream->str_size && result == true; ++i )
 		{
-			cs_destroy_cstring( &out );
-			return false;
+			result = out.push_back( &out, this.stream->buffer[ i ] );
 		}
 	}
-
-	if( output->empty( *output ) == false )
+	if( result )
 	{
-		cs_destroy_cstring( output );
+		if( output->empty( output ) == false )
+		{
+			cs_destroy_cstring( output );
+		}
+		*output = out;
 	}
 
-	*output = out;
-	err_set_result( Result_Ok );
-	return true;
+	return result;
 }
 bool ss_seek( size_t* ptr, size_t maxSize, int offset, seekpos position )
 {
+	err_set_result( Result_Invalid_Parameter );
+	bool result = false;
+
+	const int newvalue = ( int )*ptr + offset;
 	if( position == SS_SEEK_BEG )
 	{
-		if( offset >= 0 && ( size_t )offset + *ptr < maxSize )
+		if( offset >= 0 && newvalue < ( int )maxSize )
 		{
-			*ptr += ( size_t )offset;
-			err_set_result( Result_Ok );
-			return true;
+			result = true;
 		}
 	}
 	else if( position == SS_SEEK_CUR )
 	{
-		if( ( int )*ptr + offset >= 0 && ( int )*ptr + offset < maxSize )
+		if( newvalue >= 0 && newvalue < (int)maxSize )
 		{
-			( int )*ptr += offset;
-			err_set_result( Result_Ok );
-			return true;
+			result = true;
 		}
 	}
 	else
 	{
-		if( offset < 0 && ( int )*ptr + offset >= 0 )
+		if( offset < 0 && newvalue >= 0 )
 		{
-			( int )*ptr += offset;
-			err_set_result( Result_Ok );
-			return true;
+			result = true;
 		}
 	}
 
-	err_set_result( Result_Invalid_Parameter );
-	return false;
+	if( result )
+	{
+		err_set_result( Result_Ok );
+		( int )*ptr = newvalue;
+	}
+
+	return result;
 }
 bool ss_seekg( stringstream this, int offset, seekpos position )
 {
+	err_set_result( Result_Ok );
 	return ss_seek( &this.stream->readPos, this.stream->str_size, offset, position );
 }
 bool ss_seekp( stringstream this, int offset, seekpos position )
 {
+	err_set_result( Result_Ok );
 	return ss_seek( &this.stream->writePos, this.stream->str_size, offset, position );
 }
 size_t ss_tellg( stringstream this )
@@ -331,9 +360,11 @@ size_t ss_tellp( stringstream this )
 }
 bool ss_eof( const stringstream this )
 {
+	err_set_result( Result_Ok );
 	return this.stream->readPos >= this.stream->str_size;
 }
 bool ss_isInitialized( stringstream this )
 {
+	err_set_result( Result_Ok );
 	return ( this.extract == ss_extract && this.stream != nullptr );
 }

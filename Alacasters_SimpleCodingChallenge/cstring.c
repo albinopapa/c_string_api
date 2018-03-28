@@ -14,37 +14,37 @@ struct _cstring
 };
 
 // Private forward declarations
-_Bool cs_get( const cstring this, const size_t idx, char* c );
-_Bool cs_empty( const cstring this );
-size_t cs_length( const cstring this );
-const char* const* cs_data( const cstring this );
+_Bool cs_get( const cstring* this, const size_t idx, char* c );
+_Bool cs_empty( const cstring* this );
+size_t cs_length( const cstring* this );
+const char* cs_data( const cstring* this );
 
-_Bool cs_copy( const cstring this, cstring other );
-_Bool cs_find( const cstring this, size_t offset, const char c, size_t* foundAt );
-_Bool cs_substr( const cstring this, size_t offset, size_t length, cstring subString );
+//_Bool cs_copy( const cstring this, cstring other );
+_Bool cs_find( const cstring* this, size_t offset, const char c, size_t* foundAt );
+_Bool cs_substr( const cstring* this, size_t offset, size_t length, cstring* subString );
 
-void cs_clear( cstring this );
-void cs_fill( cstring this, const size_t size, const char c );
-void cs_pop_back( cstring this );
-_Bool cs_push_back( cstring this, const char c );
-_Bool cs_reserve( cstring this, const size_t size );
-_Bool cs_resize( cstring this, const size_t size );
+void cs_clear( cstring* this );
+void cs_fill( cstring* this, const size_t size, const char c );
+void cs_pop_back( cstring* this );
+_Bool cs_push_back( cstring* this, const char c );
+_Bool cs_reserve( cstring* this, const size_t size );
+_Bool cs_resize( cstring* this, const size_t size );
 
-_Bool cs_set( cstring this, size_t idx, const char c );
-_Bool cs_insert( cstring this, size_t offset, const char c );
-_Bool cs_insert_string( cstring this, size_t offset, const char* str );
-_Bool cs_insert_cstring( cstring this, size_t offset, const cstring other );
+_Bool cs_set( cstring* this, size_t idx, const char c );
+_Bool cs_insert( cstring* this, size_t offset, const char c );
+_Bool cs_insert_string( cstring* this, size_t offset, const char* str );
+_Bool cs_insert_cstring( cstring* this, size_t offset, const cstring* other );
 
 void cs_destroy( _cstring* this );
-_Bool cs_grow_to( cstring this, const size_t size );
+_Bool cs_grow_to( cstring* this, const size_t size );
 
-_Bool cs_isInitialized( cstring this );
+_Bool cs_isInitialized( const cstring* this );
 
 
 // Public definitions
 _Bool cs_default_construct( cstring* this )
 {
-	if( cs_isInitialized( *this ) == true )
+	if( cs_isInitialized( this ) == true )
 	{
 		cs_destroy_cstring( this );
 	}
@@ -111,7 +111,7 @@ _Bool cs_reserve_construct( cstring* this, const size_t size )
 	{
 		return false;
 	}
-	cs_reserve( *this, size );
+	cs_reserve( this, size );
 	return true;
 }
 _Bool cs_size_construct( cstring* this, const size_t size, const char fillWith )
@@ -120,13 +120,13 @@ _Bool cs_size_construct( cstring* this, const size_t size, const char fillWith )
 	{
 		return false;
 	}
-	if( cs_resize( *this, size ) == false )
+	if( cs_resize( this, size ) == false )
 	{
 		cs_destroy_cstring( this );
 		return false;
 	}
 
-	cs_fill( *this, size, fillWith );
+	cs_fill( this, size, fillWith );
 	return true;
 }
 _Bool cs_string_construct( cstring* this, const char* str )
@@ -145,7 +145,7 @@ _Bool cs_string_construct( cstring* this, const char* str )
 
 	for( size_t i = 0; i < len; ++i )
 	{
-		if( cs_push_back( *this, str[ i ] ) == false )
+		if( cs_push_back( this, str[ i ] ) == false )
 		{
 			cs_destroy_cstring( this );
 			return false;
@@ -163,7 +163,7 @@ _Bool cs_destroy_cstring( cstring* this )
 		err_set_result( Result_Bad_Pointer );
 		return false;
 	}
-	if( cs_isInitialized( *this ) == false )
+	if( cs_isInitialized( this ) == false )
 	{
 		err_set_result( Result_Not_Initialized );
 		return false;
@@ -189,12 +189,16 @@ _Bool cs_destroy_cstring( cstring* this )
 	this->size = nullptr;
 	this->str = nullptr;
 	this->substr = nullptr;
+
+	err_set_result( Result_Ok );
+	return true;
 }
 
+
 // Private definitions
-_Bool cs_get( const cstring this, const size_t idx, char* c )
+_Bool cs_get( const cstring* this, const size_t idx, char* c )
 {
-	if( idx >= this._string->length )
+	if( idx >= this->_string->length )
 	{
 		err_set_result( Result_Index_Out_Of_Range );
 		return false;
@@ -202,26 +206,26 @@ _Bool cs_get( const cstring this, const size_t idx, char* c )
 
 	err_set_result( Result_Ok );
 
-	*c = this._string->buffer[ idx ];
+	*c = this->_string->buffer[ idx ];
 
 	return true;
 }
-_Bool cs_empty( const cstring this )
+_Bool cs_empty( const cstring* this )
 {
 	return cs_length( this ) > 0 ? false : true;
 }
-size_t cs_length( const cstring this )
+size_t cs_length( const cstring* this )
 {
-	return this._string->length;
+	return this->_string->length;
 }
-const char* const* cs_data( const cstring this )
+const char* cs_data( const cstring* this )
 {
-	return this._string->buffer;
+	return (const char*)this->_string->buffer;
 }
 
-_Bool cs_copy( const cstring this, cstring other )
+_Bool cs_copy( const cstring* this, cstring* other )
 {
-	if( cs_reserve_construct( &other, cs_length( this ) ) == false )
+	if( cs_reserve_construct( other, cs_length( this ) ) == false )
 	{
 		return false;
 	}
@@ -240,7 +244,7 @@ _Bool cs_copy( const cstring this, cstring other )
 	
 	return true;
 }
-_Bool cs_find( const cstring this, size_t offset, const char c, size_t* foundAt )
+_Bool cs_find( const cstring* this, size_t offset, const char c, size_t* foundAt )
 {
 	for( size_t i = offset; i < cs_length( this ); ++i )
 	{
@@ -255,12 +259,12 @@ _Bool cs_find( const cstring this, size_t offset, const char c, size_t* foundAt 
 
 	return false;
 }
-_Bool cs_substr( const cstring this, size_t offset, size_t length, cstring subString )
+_Bool cs_substr( const cstring* this, size_t offset, size_t length, cstring* subString )
 {
 	offset = offset > cs_length( this ) ? cs_length( this ) : offset;
 	length = offset + length > cs_length( this ) ? cs_length( this ) - offset : length;
 
-	if( cs_reserve_construct( &subString, length ) == false )
+	if( cs_reserve_construct( subString, length ) == false )
 	{
 		return false;
 	}
@@ -278,33 +282,30 @@ _Bool cs_substr( const cstring this, size_t offset, size_t length, cstring subSt
 	return true;
 }
 
-void cs_clear( cstring this )
+void cs_clear( cstring* this )
 {
 	while( cs_empty( this ) == false )
 	{
 		cs_pop_back( this );
 	}
-
-	return true;
 }
-void cs_fill( cstring this, const size_t size, const char c )
+void cs_fill( cstring* this, const size_t size, const char c )
 {
-	void* dst = ( void* )this._string->buffer;
+	void* dst = ( void* )this->_string->buffer;
 	const size_t setsize = ( size <= cs_length( this ) ) ? size : cs_length( this );
 
 	memset( dst, c, setsize );
-	return true;
 }
-void cs_pop_back( cstring this )
+void cs_pop_back( cstring* this )
 {
 	if( cs_empty( this ) == false )
 	{
-		this._string->buffer[ this._string->length-- ] = 0;		
+		this->_string->buffer[ this->_string->length-- ] = 0;
 	}
 }
-_Bool cs_push_back( cstring this, const char c )
+_Bool cs_push_back( cstring* this, const char c )
 {
-	const size_t capacity = this._string->capacity;
+	const size_t capacity = this->_string->capacity;
 	_Bool retVal = true;
 
 	if( cs_length( this ) + 1 >= capacity )
@@ -314,33 +315,33 @@ _Bool cs_push_back( cstring this, const char c )
 
 	if(retVal == true)
 	{
-		this._string->buffer[ this._string->length++ ] = c;
+		this->_string->buffer[ this->_string->length++ ] = c;
 	}
 
 	return retVal;
 }
-_Bool cs_reserve( cstring this, const size_t size )
+_Bool cs_reserve( cstring* this, const size_t size )
 {
 	_Bool retVal = true;
-	if( this._string->capacity < size )
+	if( this->_string->capacity < size )
 	{
 		retVal = cs_grow_to( this, size );
 	}
 	
 	return retVal;
 }
-_Bool cs_resize( cstring this, const size_t size )
+_Bool cs_resize( cstring* this, const size_t size )
 {
 	if( cs_reserve( this, size + 1 ) == true )
 	{
-		this._string->length = size;
+		this->_string->length = size;
 		return true;
 	}
 
 	return false;
 }
 
-_Bool cs_set( cstring this, size_t idx, const char c )
+_Bool cs_set( cstring* this, size_t idx, const char c )
 {
 	if( idx >= cs_length( this ) )
 	{
@@ -348,10 +349,10 @@ _Bool cs_set( cstring this, size_t idx, const char c )
 		return false;
 	}
 
-	this._string->buffer[ idx ] = c;
+	this->_string->buffer[ idx ] = c;
 	return true;
 }
-_Bool cs_insert( cstring this, size_t offset, const char c )
+_Bool cs_insert( cstring* this, size_t offset, const char c )
 {
 	if( offset > cs_length( this ) )
 	{
@@ -370,13 +371,13 @@ _Bool cs_insert( cstring this, size_t offset, const char c )
 	{
 		for( size_t i = offset, j = cs_length( this ) - 1; i < j; ++i, --j )
 		{
-			swap( char, &this._string->buffer[ i ], &this._string->buffer[ j ] );
+			swap( char, &this->_string->buffer[ i ], &this->_string->buffer[ j ] );
 		}
 	}
 
 	return true;
 }
-_Bool cs_insert_string( cstring this, size_t offset, const char* str )
+_Bool cs_insert_string( cstring* this, size_t offset, const char* str )
 {
 	if( str == nullptr )
 	{
@@ -417,13 +418,13 @@ _Bool cs_insert_string( cstring this, size_t offset, const char* str )
 		{
 			char c = 0;
 			cs_get( this, i, &c );
-			cs_push_back( temp, c );
+			cs_push_back( &temp, c );
 		}
 
 		// Copy string parameter to temp
 		for( size_t i = 0; i < len; ++i )
 		{
-			cs_push_back( temp, str[ i ] );
+			cs_push_back( &temp, str[ i ] );
 		}
 
 		// Copy remaining chars from this to temp
@@ -431,19 +432,19 @@ _Bool cs_insert_string( cstring this, size_t offset, const char* str )
 		{
 			char c = 0;
 			cs_get( this, i, &c );
-			cs_push_back( temp, c );
+			cs_push_back( &temp, c );
 		}
 
 		// destroy this 
-		cs_destroy_cstring( &this );
+		cs_destroy_cstring( this );
 
 		// Assign temp to this, don't destroy temp
-		this = temp;
+		*this = temp;
 	}
 
 	return true;
 }
-_Bool cs_insert_cstring( cstring this, size_t offset, const cstring other )
+_Bool cs_insert_cstring( cstring* this, size_t offset, const cstring* other )
 {
 	if( cs_isInitialized( other ) == false )
 	{
@@ -468,49 +469,61 @@ _Bool cs_insert_cstring( cstring this, size_t offset, const cstring other )
 		for( size_t i = 0; i < len; ++i )
 		{
 			char c = 0;
-			cs_get( other, i, &c );
-			cs_push_back( this, c );
+			if( cs_get( other, i, &c ) == false )
+			{
+				return false;
+			}
+			if( cs_push_back( this, c ) == false )
+			{
+				return false;
+			}
 		}
+
+		err_set_result( Result_Ok );
+		return true;
 	}
-	else
+
+	// Copy chars from offset to end of string
+	cstring temp = { 0 };
+	if( cs_reserve_construct( &temp, cs_length( this ) + len ) == false )
 	{
-		// Copy chars from offset to end of string
-		cstring temp = { 0 };
-		if( cs_reserve_construct( &temp, cs_length( this ) + len ) == false )
-		{
-			return false;
-		}
-
-		// Copy 0 to offset to temp
-		for( size_t i = 0; i < offset; ++i )
-		{
-			char c = 0;
-			cs_get( this, i, &c );
-			cs_push_back( temp, c );
-		}
-
-		// Copy string parameter to temp
-		for( size_t i = 0; i < len; ++i )
-		{
-			char c = 0;
-			cs_get( other, i, &c );
-			cs_push_back( temp, c );
-		}
-
-		// Copy remaining chars from this to temp
-		for( size_t i = offset; i < cs_length( this ); ++i )
-		{
-			char c = 0;
-			cs_get( this, i, &c );
-			cs_push_back( temp, c );
-		}
-
-		// destroy this 
-		cs_destroy_cstring( &this );
-
-		// Assign temp to this, don't destroy temp
-		this = temp;
+		return false;
 	}
+
+	// Copy 0 to offset to temp
+	for( size_t i = 0; i < offset; ++i )
+	{
+		char c = 0;
+		cs_get( this, i, &c );
+		cs_push_back( &temp, c );
+	}
+
+	// Copy string parameter to temp
+	for( size_t i = 0; i < len; ++i )
+	{
+		char c = 0;
+		cs_get( other, i, &c );
+		cs_push_back( &temp, c );
+	}
+
+	// Copy remaining chars from this to temp
+	for( size_t i = offset; i < cs_length( this ); ++i )
+	{
+		char c = 0;
+		cs_get( this, i, &c );
+		cs_push_back( &temp, c );
+	}
+
+	// destroy this 
+	SafeDelete( &this->_string->buffer );
+	SafeDelete( &this->_string );
+
+	// Assign temp to this, don't destroy temp
+	*this = temp;
+
+	err_set_result( Result_Ok );
+	return true;
+
 }
 
 void cs_destroy( _cstring* this )
@@ -519,9 +532,9 @@ void cs_destroy( _cstring* this )
 	this->length = 0;
 	this->capacity = 0;
 }
-_Bool cs_grow_to( cstring this, const size_t size )
+_Bool cs_grow_to( cstring* this, const size_t size )
 {
-	if( this._string->capacity >= size )
+	if( this->_string->capacity >= size )
 	{
 		err_set_result( Result_Ok );
 		return true;
@@ -537,18 +550,18 @@ _Bool cs_grow_to( cstring this, const size_t size )
 	memset( buffer, 0, size );
 	if( cs_length( this ) > 0 )
 	{
-		memcpy( buffer, this._string->buffer, cs_length( this ) );
+		memcpy( buffer, this->_string->buffer, cs_length( this ) );
 	}
 
-	SafeDelete( &this._string->buffer );
-	this._string->buffer = buffer;
-	this._string->capacity = size;
+	SafeDelete( &this->_string->buffer );
+	this->_string->buffer = buffer;
+	this->_string->capacity = size;
 
 	err_set_result( Result_Ok );
 	return true;
 }
 
-_Bool cs_isInitialized( cstring this )
+_Bool cs_isInitialized( const cstring* this )
 {
-	return ( ( this.at_get == cs_get ) && ( this._string != nullptr ) ) ? 1 : 0;
+	return ( ( this->at_get == cs_get ) && ( this->_string != nullptr ) ) ? 1 : 0;
 }

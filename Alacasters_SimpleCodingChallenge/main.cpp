@@ -3,10 +3,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include "cstring.h"
+#include "customerror.h"
 #include "defines.h"
 #include "memory.h"
 #include "stringstream.h"
-#include "customerror.h"
+#include "utility.h"
 
 #define MAX_LEN 255
 
@@ -17,101 +18,144 @@ bool GetUserInput( cstring input );
 bool WordCounter( const cstring input, size_t* numWords );
 bool MaxWordLength( const cstring input, size_t* wordLength );
 
-
 // Message codec
 bool Encode( const cstring input, cstring output, const size_t numColumns, const size_t numRows );
 bool Transform( const cstring input, cstring output, const size_t numColumns, const size_t numRows );
 void Decode( const cstring input, cstring output );
 
-int main() 
+bool PrintTransformed( const cstring input, const size_t numColumns, const size_t numRows );
+
+bool WordEncrypter()
 {	
-	//take input
 	cstring input = { 0 };
-	if( cs_default_construct( &input ) == false )
-	{
-		return -1;
-	}
-
-	if( GetUserInput( input ) == false )
-	{
-		cs_destroy_cstring( &input );
-		return -1;
-	}
-
-	size_t numColumns = 0, numRows = 0; 
-	if( WordCounter( input, &numColumns ) == false )
-	{
-		cs_destroy_cstring( &input );
-		return -1;
-	}
-	if( MaxWordLength( input, &numRows ) == false )
-	{
-		cs_destroy_cstring( &input );
-		return -1;
-	}
-
-	printf( "%c", '\n' );
 	cstring transformed = { 0 };
-	if( cs_default_construct( &transformed ) == false )
-	{
-		cs_destroy_cstring( &input );
-		return -1;
-	}
-	if( Transform( input, transformed, numColumns, numRows ) == false )
-	{
-		cs_destroy_cstring( &input );
-		cs_destroy_cstring( &transformed );
-		return -1;
-	}
-
-	for( size_t j = 0; j < numRows; ++j )
-	{
-		for( size_t i = 0; i < numColumns; ++i )
-		{
-			const size_t idx = i + ( j*numColumns );
-			const char c = 0;
-			if( transformed.at_get( transformed, idx, &c ) == false )
-			{
-				if( err_get_result() != Result_Ok )
-				{
-					cs_destroy_cstring( &input );
-					cs_destroy_cstring( &transformed );
-					return -1;
-				}
-			}
-
-			printf( "%c", c == 0 ? ' ' : c );
-			printf( "%s", ", " );
-		}
-
-		printf( "%c", '\n' );
-	}
-
-	printf( "%c", '\n' );
-	//encode string one into string two without modifying string one
 	cstring output = { 0 };
-	if( cs_reserve_construct( &output, numColumns * numRows ) == false )
-	{
-		cs_destroy_cstring( &input );
-		cs_destroy_cstring( &transformed );
-		return -1;
-	}
-	if( Encode( transformed, output, numColumns, numRows ) == false )
-	{
-		if( err_get_result() != Result_Ok )
-		{
-			cs_destroy_cstring( &input );
-			cs_destroy_cstring( &transformed );
-			return -1;
-		}
-	}
+	size_t numColumns = 0;
+	size_t numRows = 0;
 
-	printf( "%s", output.str( output ) );
+	bool result = cs_default_construct( &input );
+
+	if( result == true )
+	{
+		result = GetUserInput( input );
+	}
+	if( result == true )
+	{
+		result = WordCounter( input, &numColumns );
+	}
+	if( result == true )
+	{
+		result = MaxWordLength( input, &numRows );
+	}
+	if( result == true )
+	{
+		result = cs_default_construct( &transformed );
+	}
+	if( result == true )
+	{
+		result = Transform( input, transformed, numColumns, numRows );
+	}
+	if( result == true )
+	{
+		result = cs_reserve_construct( &output, numColumns * numRows );
+	}
+	if( result == true )
+	{
+		result = Encode( transformed, output, numColumns, numRows );
+	}
+	if( result == true )
+	{
+		printf( "%c", '\n' );
+		result = PrintTransformed( transformed, numColumns, numRows );
+	}
+	if( result == true )
+	{
+		printf( "%c", '\n' );
+		printf( "%s", output.str( &output ) );
+	}
 
 	cs_destroy_cstring( &output );
 	cs_destroy_cstring( &transformed );
 	cs_destroy_cstring( &input );
 
+	return result;
+}
+
+
+
+void func()
+{
+	const size_t numElements = 10;
+	container cont_a = { 0 };
+	container cont_b = { 0 };
+	cstring ins_temp = { 0 };
+	char six = 0;
+
+	bool result = cont_size_construct(
+		&cont_a, 
+		numElements,
+		sizeof( cstring ), 
+		cs_default_construct,
+		cs_copy, 
+		cs_destroy_cstring );
+	if( result )
+	{
+		for( size_t i = 0; i < numElements && result == true; ++i )
+		{
+			if( i != 6 )
+			{
+				char num[ 2 ];
+				_ultoa( i, num, 10 );
+				cstring temp = { 0 };
+
+				result = cs_default_construct( &temp );
+				if( result )
+				{
+					result = temp.push_back( &temp, num[ 0 ] );
+				}
+				if( result )
+				{
+					result = cont_a.push_back( &cont_a, &temp );
+				}
+
+				cs_destroy_cstring( &temp );
+			}
+		}
+	}
+	if( result )
+	{
+		six = '6';
+		result = cs_size_construct( &ins_temp, 1, six );
+	}
+	if( result )
+	{
+		result = cont_a.insert( &cont_a, 6, &ins_temp );
+		cs_destroy_cstring( &ins_temp );
+	}
+	if( result )
+	{
+		result = cont_a.copy( &cont_a, &cont_b );
+	}
+	if( result )
+	{
+		printf( "%c", '\n' );
+		iterator it = cont_a.begin( &cont_a ), end = cont_a.end( &cont_a );
+		for( ; it.is_equal( it, end ) == false && result == true; it = it.advance( it ) )
+		{
+			cstring* temp = ( cstring* )it.get( it );
+			printf( "%s", temp->str( temp ) );
+		}
+	}
+
+	cont_a.clear( &cont_a );
+
+	cont_destroy( &cont_b );
+	cont_destroy( &cont_a );
+}
+
+int main()
+{
+	func();
 	return 0;
 }
 
@@ -120,7 +164,7 @@ bool GetUserInput( cstring input )
 	char c = 0;
 	while( ( c = getchar() ) != '\n' )
 	{
-		if( input.push_back( input, c ) == false )
+		if( input.push_back( &input, c ) == false )
 		{
 			return false;
 		}
@@ -155,7 +199,7 @@ bool WordCounter( const cstring input, size_t* numWords )
 			return false;
 		}
 
-		if( temp.empty( temp ) == false )
+		if( temp.empty( &temp ) == false )
 		{
 			++wordCount;
 		}
@@ -172,143 +216,141 @@ bool WordCounter( const cstring input, size_t* numWords )
 
 bool MaxWordLength( const cstring input, size_t* wordLength )
 {
-	size_t curWordLen = 0,maxWordLen = 0;	
+	err_set_result( Result_Ok );
+
+	size_t curWordLen = 0,maxWordLen = 0;
 	*wordLength = -1;
-
 	stringstream ss = { 0 };
-	if( ss_construct( &ss ) == false )
-	{
-		return false;
-	}
 
-	if( ss.insert_cstring( ss, input ) == false )
+	bool result = ss_construct( &ss );
+	if( result )
 	{
-		ss_destroy( &ss );
-		return false;
+		result = ss.insert_cstring( ss, input );
 	}
-
-	do
+	if( result )
 	{
-		cstring temp = { 0 };
-		if( ss.extract( ss, &temp ) == false )
+		do
 		{
-			if(err_get_result() != Result_Ok)
+			cstring temp = { 0 };
+			result = ss.extract( ss, &temp );
+
+			if( result == false && err_get_result() == Result_Ok )
 			{
-				ss_destroy( &ss );
-				return false;
+				if( ( curWordLen = temp.size( &temp ) ) > 0 )
+				{
+					maxWordLen = curWordLen > maxWordLen ? curWordLen : maxWordLen;
+				}
 			}
-		}
 
-		if( ( curWordLen = temp.size( temp ) ) > 0 )
-		{
-			maxWordLen = curWordLen > maxWordLen ? curWordLen : maxWordLen;
-		}
-
-		cs_destroy_cstring( &temp );
-	} while( ss.eof( ss ) == false );
+			cs_destroy_cstring( &temp );
+		} while( ss.eof( ss ) == false );
+	}
 	
 	ss_destroy( &ss );
 
-	err_set_result( Result_Ok );
 	*wordLength = maxWordLen;
 	return true;
 }
 
 bool Transform( const cstring input, cstring output, const size_t numColumns, const size_t numRows )
 {
+	err_set_result( Result_Ok );
+
 	size_t wordCounter = 0;
-
-	// Transformation
 	stringstream ss = { 0 };
-	if( ss_construct( &ss ) == false )
-	{
-		return false;
-	}
-	if( ss.insert_cstring( ss, input ) == false )
-	{
-		ss_destroy( &ss );
-		return false;
-	}
-
 	cstring temp = { 0 };
-	if( ss.extract( ss, &temp ) == false )
+
+	bool result = ss_construct( &ss );
+
+	if( result )
 	{
-		if( err_get_result() != Result_Ok )
+		result = ss.insert_cstring( ss, input );
+	}
+	if( result )
+	{
+		result = ss.extract( ss, &temp );
+	}
+	if( result )
+	{
+		if( output.size( &output ) < numColumns * numRows )
 		{
-			ss_destroy( &ss );
-			return false;
+			result = output.resize( &output, numColumns * numRows );
 		}
 	}
-
-	if( output.size( output ) < numColumns * numRows )
+	if( result )
 	{
-		if( output.resize( output, numColumns * numRows ) == false )
+		while( result )
 		{
-			ss_destroy( &ss );
-			return false;
-		}
-	}
-	while( temp.empty( temp ) == false )
-	{
-		const size_t str_len = temp.size( temp );
+			const size_t str_len = temp.size( &temp );
 
-		for( size_t i = 0; i < str_len; ++i )
-		{
-			char c = 0;
-			temp.at_get( temp, i, &c );
-
-			const size_t idx = wordCounter + ( i * numColumns );
-			output.at_set( output, idx, c );
-		}
-
-		++wordCounter;
-
-		cs_destroy_cstring( &temp );
-		if( ss.extract( ss, &temp ) == false )
-		{
-			if( err_get_result() != Result_Ok )
+			for( size_t i = 0; i < str_len; ++i )
 			{
-				ss_destroy( &ss );
-				return false;
+				char c = 0;
+				temp.at_get( &temp, i, &c );
+
+				const size_t idx = wordCounter + ( i * numColumns );
+				output.at_set( &output, idx, c );
 			}
+
+			++wordCounter;
+
+			cs_destroy_cstring( &temp );
+			result = ss.extract( ss, &temp );
 		}
 	}
 
 	cs_destroy_cstring( &temp );
 	ss_destroy( &ss );
 
-	err_set_result( Result_Ok );
-	return true;
+	return result;
 }
 
 bool Encode( const cstring input, cstring output, const size_t numColumns, const size_t numRows )
 {	
-	// Output	
+	bool result = true;
+	err_set_result( Result_Ok );
+
 	for( size_t j = 0, idx = 0; j < numRows; ++j, ++idx )
 	{
 		const size_t rowOffset = j * numColumns;
 		for( size_t i = 0; i < numColumns; ++i )
 		{
 			char c = 0;
-			if( input.at_get( input, i + rowOffset, &c ) == false )
+			if( result )
 			{
-				return false;
+				result = input.at_get( &input, i + rowOffset, &c ) && result;
 			}
-			if( c != '\0' )
+			if( result && c != '\0' )
 			{
-				if( output.push_back( output, c ) == false )
-				{
-					return false;
-				}
+				result = output.push_back( &output, c );
 			}
 		}
-
-		if( output.push_back( output, ' ' ) == false )
+		if( result )
 		{
-			return false;
+			result = output.push_back( &output, ' ' );
 		}
 	}
 
-	err_set_result( Result_Ok );
 	return true;
+}
+
+bool PrintTransformed( const cstring input, const size_t numColumns, const size_t numRows )
+{
+	bool result = true;
+	for( size_t j = 0; j < numRows; ++j )
+	{
+		for( size_t i = 0; i < numColumns; ++i )
+		{
+			const size_t idx = i + ( j * numColumns );
+			char c = 0;
+			input.at_get( &input, idx, &c );
+
+			printf( "%c", c == 0 ? ' ' : c );
+			printf( "%s", ", " );
+		}
+
+		printf( "%c", '\n' );
+	}
+
+	return result;
 }
