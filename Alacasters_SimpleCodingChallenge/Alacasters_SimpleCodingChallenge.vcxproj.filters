@@ -30,6 +30,9 @@
     <ClCompile Include="customerror.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="utility.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="stringstream.h">
